@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  APIGWDeploymentMacroFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main
+      Runtime: go1.x
+      CodeUri: ./apigw-deployment-macro
+  APIGWDeploymentMacro:
+    Type: AWS::CloudFormation::Macro
+    Properties:
+      Name: APIGWDeploymentMacro
+      FunctionName: !Sub ${APIGWDeploymentMacroFunction.Arn}
+
+Outputs:
+  APIGWMacroFunctionLogs:
+    Value: !Sub "sam logs --name ${APIGWDeploymentMacroFunction} --tail"
