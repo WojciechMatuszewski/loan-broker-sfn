@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Timeout: 5
+    Runtime: go1.x
+    Handler: main
+
+Resources:
+  BrokerMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+      Policies: []
+
+  BrokerStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ./broker-machine.asl.json
+      Role: !Sub ${BrokerMachineRole.Arn}
+      Tracing:
+        Enabled: true
+
+  BrokerAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub ${AWS::StackName}-api
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  BrokerAPIInvokeStateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - !Sub apigateway.amazonaws.com
+      Policies:
+        - PolicyName: InvokeBrokerStateMachine
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Sub ${BrokerStateMachine.Arn}
+
+  BrokerAPIEntryMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Sub ${BrokerAPI}
+      ResourceId: !Sub ${BrokerAPI.RootResourceId}
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Credentials: !Sub ${BrokerAPIInvokeStateMachineRole.Arn}
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:states:action/StartExecution"
+        # 'RequestTemplates' section to massage the data before it is sent to a given service.
+        # In our case, all the user has to provide is the request body, other parameters necessary to invoke the SFN are added by this mapping.
+        RequestTemplates:
+          application/json: !Sub >-
+            {
+              "input": "$util.escapeJavaScript($input.json('$'))",
+              "stateMachineArn": "${BrokerStateMachine.Arn}",
+              "name": "$context.requestId"
+            }
+        IntegrationResponses:
+          - StatusCode: 200
+            # By default, the 'executionArn' and 'startDate' is returned. Map the response from SFN the 'jobID' token.
+            ResponseTemplates:
+              "application/json": !Sub >-
+                {
+                  "jobID": "$context.requestId"
+                }
+            ResponseParameters:
+              "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+              "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              "method.response.header.Access-Control-Allow-Origin": "'*'"
+        PassthroughBehavior: NEVER
+      MethodResponses:
+        - StatusCode: 200
+          # What kind of 'ResponseParameter' I'm able to specify within the 'IntegrationResponses' for a 'StatusCode' of 200
+          ResponseParameters:
+            "method.response.header.Access-Control-Allow-Origin": true
+            "method.response.header.Access-Control-Allow-Methods": true
+            "method.response.header.Access-Control-Allow-Headers": true
+
+  BrokerAPIDeployment:
+    Type: AWS::ApiGateway::Deployment
+    # Required. Otherwise CFN will try to create a deployment that might not have any methods attached to it (CFN will throw an error).
+    DependsOn:
+      - BrokerAPIEntryMethod
+    Properties:
+      RestApiId: !Sub ${BrokerAPI}
+
+  BrokerAPIStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: dev
+      RestApiId: !Sub ${BrokerAPI}
+      DeploymentId: !Sub ${BrokerAPIDeployment}
+
+Outputs:
+  BrokerAPIEntryMethod:
+    Value: !Sub https://${BrokerAPI}.execute-api.${AWS::Region}.amazonaws.com/${BrokerAPIStage}
