@@ -45,7 +45,6 @@ func handler(ctx context.Context, event Event) (Response, error) {
 	fmt.Println("Timestamp", timestamp)
 
 	rawNewFragment := strings.ReplaceAll(string(buf), "$TIMESTAMP$", timestamp)
-
 	fmt.Println("New changed fragment", rawNewFragment)
 
 	var newFragment map[string]interface{}

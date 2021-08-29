@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: "2010-09-09"
-# Transform: AWS::Serverless-2016-10-31
 Transform:
   - AWS::Serverless-2016-10-31
   - APIGWDeploymentMacro
@@ -11,6 +10,21 @@ Globals:
     Handler: main
 
 Resources:
+  DataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
   BrokerMachineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -32,14 +46,6 @@ Resources:
       Role: !Sub ${BrokerMachineRole.Arn}
       Tracing:
         Enabled: true
-
-  BrokerAPI:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: !Sub ${AWS::StackName}-api
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
 
   BrokerAPIInvokeStateMachineRole:
     Type: AWS::IAM::Role
@@ -64,6 +70,45 @@ Resources:
                 Resource:
                   - !Sub ${BrokerStateMachine.Arn}
 
+  BrokerAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub ${AWS::StackName}-api
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  BrokerAPIEntryModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId: !Sub ${BrokerAPI}
+      ContentType: application/json
+      Name: Entry
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: EntrySchema
+        type: object
+        properties:
+          SSN:
+            type: string
+          Amount:
+            type: number
+            minimum: 1
+          Term:
+            type: number
+        required:
+          - SSN
+          - Amount
+          - Term
+        additionalProperties: false
+
+  BrokerAPIEntryValidator:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId: !Sub ${BrokerAPI}
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+
   BrokerAPIEntryMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -71,6 +116,10 @@ Resources:
       ResourceId: !Sub ${BrokerAPI.RootResourceId}
       AuthorizationType: NONE
       HttpMethod: POST
+      # Both the model and validator is required to enable request validation.
+      RequestModels:
+        application/json: !Sub ${BrokerAPIEntryModel}
+      RequestValidatorId: !Sub ${BrokerAPIEntryValidator}
       Integration:
         Type: AWS
         IntegrationHttpMethod: POST
