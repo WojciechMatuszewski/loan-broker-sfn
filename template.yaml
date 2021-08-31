@@ -23,5 +23,8 @@ Resources:
 Outputs:
   APIGWMacroFunctionLogs:
     Value: !Sub ${APIGWMacro.Outputs.APIGWMacroFunctionLogs}
+
   BrokerAPIEntryMethod:
     Value: !Sub ${LoanBroker.Outputs.BrokerAPIEntryMethod}
+  BrokerStateMachineArn:
+    Value: !Sub ${LoanBroker.Outputs.BrokerStateMachineArn}

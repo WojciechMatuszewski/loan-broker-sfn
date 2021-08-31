@@ -29,7 +29,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Action:
@@ -37,13 +37,24 @@ Resources:
             Principal:
               Service:
                 - !Sub states.${AWS::Region}.amazonaws.com
-      Policies: []
+      Policies:
+        - PolicyName: WriteItemToDataTable
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !Sub ${DataTable.Arn}
 
   BrokerStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ./broker-machine.asl.json
       Role: !Sub ${BrokerMachineRole.Arn}
+      DefinitionSubstitutions:
+        DataTableName: !Sub ${DataTable}
       Tracing:
         Enabled: true
 
@@ -51,7 +62,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Action:
@@ -62,7 +73,7 @@ Resources:
       Policies:
         - PolicyName: InvokeBrokerStateMachine
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
@@ -140,7 +151,7 @@ Resources:
             ResponseTemplates:
               "application/json": !Sub >-
                 {
-                  "jobID": "$context.requestId",
+                  "id": "$context.requestId",
                 }
             ResponseParameters:
               "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
@@ -177,3 +188,6 @@ Resources:
 Outputs:
   BrokerAPIEntryMethod:
     Value: !Sub https://${BrokerAPI}.execute-api.${AWS::Region}.amazonaws.com/${BrokerAPIStage}
+
+  BrokerStateMachineArn:
+    Value: !Sub ${BrokerStateMachine.Arn}

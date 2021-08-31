@@ -1,6 +1,37 @@
 {
-  "StartAt": "Artificial Delay",
+  "StartAt": "Save Entry in DDB",
   "States": {
+    "Save Entry in DDB": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${DataTableName}",
+        "Item": {
+          "pk": {
+            "S.$": "$$.Execution.Name"
+          },
+          "sk": {
+            "S": "STARTING"
+          },
+          "updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "createdAt": {
+            "S.$": "$$.Execution.StartTime"
+          }
+        }
+      },
+      "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Next": "Artificial Delay"
+    },
     "Artificial Delay": {
       "Type": "Wait",
       "Seconds": 20,

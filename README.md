@@ -53,6 +53,11 @@ WIP
   **To view the processed template, toggle the 'View processed template' switch on that tab**.
 
 - APIGW validation is weird
+
   - You can create a model, associate it with a method, but the request body will not by validated against that model
   - To actually enable request validation you have to create the `AWS::ApiGateway::RequestValidator` resource and also associate it with a given method.
   - I'm not 100% sure why you have to attach two resources to a given method to enable validation.
+
+- Testing _Step Functions_ is hard.
+  - You could use the [Step Functions Local](https://docs.aws.amazon.com/step-functions/latest/dg/sfn-local.html) but you would not be able to test IAM permissions.
+  - You could test the whole flow end-to-end but, usually, such endeavors end with the test taking a lot of time.
