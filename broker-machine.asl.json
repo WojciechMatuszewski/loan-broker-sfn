@@ -10,7 +10,7 @@
           "pk": {
             "S.$": "$$.Execution.Name"
           },
-          "sk": {
+          "status": {
             "S": "STARTING"
           },
           "updatedAt": {
@@ -26,16 +26,72 @@
         {
           "ErrorEquals": ["States.TaskFailed"],
           "IntervalSeconds": 5,
-          "MaxAttempts": 0,
+          "MaxAttempts": 2,
           "BackoffRate": 1.5
         }
       ],
       "Next": "Artificial Delay"
     },
+
     "Artificial Delay": {
       "Type": "Wait",
-      "Seconds": 20,
-      "End": true
+      "Seconds": 1,
+      "Next": "Consult Credit Bureau"
+    },
+
+    "Consult Credit Bureau": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CreditBureauFunctionName}",
+        "Payload.$": "$"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Next": "Update status",
+      "ResultSelector": {
+        "score.$": "$.Payload.score",
+        "history.$": "$.Payload.history"
+      },
+      "ResultPath": "$.credit"
+    },
+
+    "Update status": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${DataTableName}",
+        "Key": {
+          "pk": {
+            "S.$": "$$.Execution.Name"
+          }
+        },
+        "UpdateExpression": "set #status = :newStatus",
+        "ConditionExpression": "attribute_exists(#pk)",
+        "ExpressionAttributeValues": {
+          ":newStatus": "CONSULTING_BUREAU"
+        },
+        "ExpressionAttributeNames": {
+          "#pk": "pk",
+          "#status": "status"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "End": true,
+      "ResultPath": null
     }
   }
 }

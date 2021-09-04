@@ -16,14 +16,19 @@ Resources:
       AttributeDefinitions:
         - AttributeName: pk
           AttributeType: S
-        - AttributeName: sk
-          AttributeType: S
+        # - AttributeName: sk
+        #   AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
-        - AttributeName: sk
-          KeyType: RANGE
+        # - AttributeName: sk
+        #   KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
+
+  CreditBureauFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./credit-bureau
 
   BrokerMachineRole:
     Type: AWS::IAM::Role
@@ -47,6 +52,24 @@ Resources:
                   - dynamodb:PutItem
                 Resource:
                   - !Sub ${DataTable.Arn}
+        - PolicyName: UpdateItemInDataTable
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !Sub ${DataTable.Arn}
+        - PolicyName: InvokeCreditBureauFunction
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub ${CreditBureauFunction.Arn}
 
   BrokerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -55,6 +78,7 @@ Resources:
       Role: !Sub ${BrokerMachineRole.Arn}
       DefinitionSubstitutions:
         DataTableName: !Sub ${DataTable}
+        CreditBureauFunctionName: !Sub ${CreditBureauFunction}
       Tracing:
         Enabled: true
 
@@ -102,15 +126,15 @@ Resources:
         properties:
           SSN:
             type: string
-          Amount:
+          amount:
             type: number
             minimum: 1
-          Term:
+          term:
             type: number
         required:
           - SSN
-          - Amount
-          - Term
+          - amount
+          - term
         additionalProperties: false
 
   BrokerAPIEntryValidator:

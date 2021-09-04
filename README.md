@@ -68,3 +68,17 @@ WIP
   - You could test the whole flow end-to-end but, usually, such endeavors end with the test taking a lot of time.
 
     1. You can test the permissions of the SFN.
+
+- Use the `ResultPath: null` if you do not want to pollute the step output with the response of the service your step integrates with.
+  Very useful for _DynamoDB_ integrations.
+
+- The are **multiple ways to invoke lambda with SFNs**.
+
+  1. Using the `"Resource": "arn:aws:states:::lambda:invoke"` and specifying `FunctionName` within the `Parameters` block.
+
+     - You can use the `.waitForTaskToken`.
+     - You have to explicitly specify the payload your function will receive via the `Payload` property.
+
+  2. Using the `"Resource": "FUNCTION_ARN"` way.
+     - You **cannot use the `Parameters` block**
+     - The **SFN input is _implicitly_ passed to the function payload**.
