@@ -93,4 +93,14 @@ WIP
      Here is how: `"banks.$": "States.Array('Static', $.Resolved, 'AnotherStatic')"`
 
 - Remember that, when specifying _DynamoDB_ conditions, the _DynamoDB_ will first identify an item to compare against, then run the `Condition Expression`.
+
   1. Do we pay for such identification? Is that baked into the price of the service?
+
+- You **cannot use the `ConditionExpression` while performing `GetItem`**.
+  Maybe it's because for the `ConditionExpression` to work, DDB has to inspect the item in the first place - you might as well do it yourself and check?
+
+- You **cannot natively marshal back the result of the `GetItem` call**.
+  What you can do is to use **`ResultSelector` and dig into each individual property** to retrieve the value.
+  One note though, **if you decide to use the `ResultSelector`, remember that every underlying value will be a string**. The _DynamoDB_ uses the `N` or `S` to define what kind of type the value is but keeps the value as a string.
+
+- Actually, the `ResultPath` is very handy. I imagine if you want to get the actual data returned by the service integration, you will be using it a lot.

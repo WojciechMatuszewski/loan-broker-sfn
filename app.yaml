@@ -51,6 +51,11 @@ Resources:
     Properties:
       CodeUri: ./credit-bureau
 
+  CalculateRateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./calculate-rate
+
   BrokerMachineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -82,6 +87,15 @@ Resources:
                   - dynamodb:UpdateItem
                 Resource:
                   - !Sub ${DataTable.Arn}
+        - PolicyName: GetBankItem
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub ${DataTable.Arn}
         - PolicyName: InvokeCreditBureauFunction
           PolicyDocument:
             Version: 2012-10-17
@@ -91,6 +105,15 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !Sub ${CreditBureauFunction.Arn}
+        - PolicyName: InvokeCalculateRateFunction
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub ${CalculateRateFunction.Arn}
 
   BrokerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -100,6 +123,7 @@ Resources:
       DefinitionSubstitutions:
         DataTableName: !Sub ${DataTable}
         CreditBureauFunctionName: !Sub ${CreditBureauFunction}
+        CalculateRateFunctionName: !Sub ${CalculateRateFunction}
       Tracing:
         Enabled: true
 
@@ -236,3 +260,32 @@ Outputs:
 
   BrokerStateMachineArn:
     Value: !Sub ${BrokerStateMachine.Arn}
+# {
+#   "SSN": "123-123",
+#   "amount": 30,
+#   "term": 30,
+#   "credit": {
+#     "score": 481,
+#     "history": 18
+#   },
+#   "banks": {
+#     "bankName": [
+#       "Universal",
+#       "PawnShop",
+#       "Premium"
+#     ]
+#   },
+#   "quotes": [
+#     {
+#       "rate": []
+#     },
+#     {
+#       "rate": [
+#         8.213301439898098
+#       ]
+#     },
+#     {
+#       "rate": []
+#     }
+#   ]
+# }

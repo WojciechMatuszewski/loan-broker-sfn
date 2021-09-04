@@ -123,6 +123,7 @@
       "ResultPath": null,
       "Next": "Get bank names"
     },
+
     "Get bank names": {
       "Type": "Pass",
       "Parameters": {
@@ -131,9 +132,11 @@
       "ResultPath": "$.banks",
       "Next": "Get quotes"
     },
+
     "Get quotes": {
       "Type": "Map",
       "ItemsPath": "$.banks.bankName",
+      "ResultPath": "$.quotes",
       "Parameters": {
         "amount.$": "$.amount",
         "term.$": "$.term",
@@ -142,10 +145,46 @@
       },
       "End": true,
       "Iterator": {
-        "StartAt": "Mock",
+        "StartAt": "Get the bank",
         "States": {
-          "Mock": {
-            "Type": "Pass",
+          "Get the bank": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:getItem",
+            "Parameters": {
+              "TableName": "${DataTableName}",
+              "Key": {
+                "pk": {
+                  "S.$": "States.Format('BANK#{}', $.bankName)"
+                }
+              }
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 5,
+                "MaxAttempts": 2,
+                "BackoffRate": 1.5
+              }
+            ],
+            "ResultSelector": {
+              "minCreditScore.$": "$.Item.minCreditScore.N",
+              "baseRate.$": "$.Item.baseRate.N",
+              "maxLoanAmount.$": "$.Item.maxLoanAmount.N"
+            },
+            "ResultPath": "$.bankInfo",
+            "Next": "Calculate rate"
+          },
+
+          "Calculate rate": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "${CalculateRateFunctionName}"
+            },
+            "ResultSelector": {
+              "rate.$": "$.[?(@.Payload)].Payload.rate"
+            },
             "End": true
           }
         }
