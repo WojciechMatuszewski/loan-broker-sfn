@@ -25,6 +25,27 @@ Resources:
         #   KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
 
+  BanksSeederFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./seed-banks
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource:
+                - !Sub ${DataTable.Arn}
+
+  BanksSeederResource:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn:
+      - DataTable
+    Properties:
+      ServiceToken: !Sub ${BanksSeederFunction.Arn}
+      TableName: !Sub ${DataTable}
+
   CreditBureauFunction:
     Type: AWS::Serverless::Function
     Properties:

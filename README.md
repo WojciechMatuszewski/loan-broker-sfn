@@ -82,3 +82,15 @@ WIP
   2. Using the `"Resource": "FUNCTION_ARN"` way.
      - You **cannot use the `Parameters` block**
      - The **SFN input is _implicitly_ passed to the function payload**.
+
+- While the SFN use _JSONPath_ for path traversal, not all of its functions are available to you.
+  Having said that, you should **take a look at the [_Intrinsic functions_ reference](https://docs.aws.amazon.com/step-functions/latest/dg/amazon-states-language-intrinsic-functions.html)**. You can do some cool stuff with them, **especially the `States.Format` one**
+
+  1. Imagine wanting to overload _DynamoDB_ primary key, how one might add a `TYPE#` prefix?
+     Here is how: `"S.$": "States.Format('LOAN#{}', $$.Execution.Name)"`
+
+  2. Maybe you want to create an array from object values?
+     Here is how: `"banks.$": "States.Array('Static', $.Resolved, 'AnotherStatic')"`
+
+- Remember that, when specifying _DynamoDB_ conditions, the _DynamoDB_ will first identify an item to compare against, then run the `Condition Expression`.
+  1. Do we pay for such identification? Is that baked into the price of the service?

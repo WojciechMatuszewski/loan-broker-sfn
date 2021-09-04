@@ -1,14 +1,14 @@
 {
-  "StartAt": "Save Entry in DDB",
+  "StartAt": "Save loan request",
   "States": {
-    "Save Entry in DDB": {
+    "Save loan request": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
         "TableName": "${DataTableName}",
         "Item": {
           "pk": {
-            "S.$": "$$.Execution.Name"
+            "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
           },
           "status": {
             "S": "STARTING"
@@ -36,40 +36,16 @@
     "Artificial Delay": {
       "Type": "Wait",
       "Seconds": 1,
-      "Next": "Consult Credit Bureau"
+      "Next": "Update status (consulting bureau)"
     },
-
-    "Consult Credit Bureau": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "Parameters": {
-        "FunctionName": "${CreditBureauFunctionName}",
-        "Payload.$": "$"
-      },
-      "Retry": [
-        {
-          "ErrorEquals": ["States.TaskFailed"],
-          "IntervalSeconds": 5,
-          "MaxAttempts": 2,
-          "BackoffRate": 1.5
-        }
-      ],
-      "Next": "Update status",
-      "ResultSelector": {
-        "score.$": "$.Payload.score",
-        "history.$": "$.Payload.history"
-      },
-      "ResultPath": "$.credit"
-    },
-
-    "Update status": {
+    "Update status (consulting bureau)": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:updateItem",
       "Parameters": {
         "TableName": "${DataTableName}",
         "Key": {
           "pk": {
-            "S.$": "$$.Execution.Name"
+            "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
           }
         },
         "UpdateExpression": "set #status = :newStatus",
@@ -90,8 +66,90 @@
           "BackoffRate": 1.5
         }
       ],
+      "ResultPath": null,
+      "Next": "Consult Credit Bureau"
+    },
+
+    "Consult Credit Bureau": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CreditBureauFunctionName}",
+        "Payload.$": "$"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Next": "Update status (getting quotes)",
+      "ResultSelector": {
+        "score.$": "$.Payload.score",
+        "history.$": "$.Payload.history"
+      },
+      "ResultPath": "$.credit"
+    },
+    "Update status (getting quotes)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${DataTableName}",
+        "Key": {
+          "pk": {
+            "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
+          }
+        },
+        "UpdateExpression": "set #status = :newStatus",
+        "ConditionExpression": "attribute_exists(#pk)",
+        "ExpressionAttributeValues": {
+          ":newStatus": "GETTING_QUOTES"
+        },
+        "ExpressionAttributeNames": {
+          "#pk": "pk",
+          "#status": "status"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "ResultPath": null,
+      "Next": "Get bank names"
+    },
+    "Get bank names": {
+      "Type": "Pass",
+      "Parameters": {
+        "bankName.$": "States.Array('Universal', 'PawnShop', 'Premium')"
+      },
+      "ResultPath": "$.banks",
+      "Next": "Get quotes"
+    },
+    "Get quotes": {
+      "Type": "Map",
+      "ItemsPath": "$.banks.bankName",
+      "Parameters": {
+        "amount.$": "$.amount",
+        "term.$": "$.term",
+        "credit.$": "$.credit",
+        "bankName.$": "$$.Map.Item.Value"
+      },
       "End": true,
-      "ResultPath": null
+      "Iterator": {
+        "StartAt": "Mock",
+        "States": {
+          "Mock": {
+            "Type": "Pass",
+            "End": true
+          }
+        }
+      }
     }
   }
 }
