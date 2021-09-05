@@ -2,8 +2,6 @@
 
 Inspired by [this blog post](https://www.enterpriseintegrationpatterns.com/ramblings/loanbroker_stepfunctions.html).
 
-WIP
-
 ## Learnings
 
 - _AWS SAM_ allows you to deploy multiple nested stacks at once. To do so, use the `AWS::Serverless::Application` resource type.
@@ -104,3 +102,30 @@ WIP
   One note though, **if you decide to use the `ResultSelector`, remember that every underlying value will be a string**. The _DynamoDB_ uses the `N` or `S` to define what kind of type the value is but keeps the value as a string.
 
 - Actually, the `ResultPath` is very handy. I imagine if you want to get the actual data returned by the service integration, you will be using it a lot.
+
+- _JSONPath_ can be a bit cumbersome to work with. Some expression return an array of values, that would not be the problem if not for the fact that
+  **I could not find a way to access an specific index within an array via _JSONPath_**.
+
+- There is an **alternative syntax** you can use to create the `ExpressionAttributeValues` when using _DynamoDB UpdateItem_ operation.
+  Usually, I used a simple assignment syntax like so: `":value": "VALUE"` but **this will not work when the "VALUE" is dynamic, e.g coming from the SFN input**.
+  An alternative syntax is to **use the _attribute value_ notation** like so:
+
+  ```text
+    ":quotes": {
+      "S.$": "States.JsonToString($.quotes)"
+    }
+  ```
+
+  This syntax **also works for non-dynamic values**
+
+  ```text
+    ":newStatus": {
+      "S": "FINISHED"
+    },
+  ```
+
+- Time and time again I'm amazed by how hard is it to get an absolute path to a file using Go.
+  There is no `__dirname`, you have to walk the directory tree recursively.
+
+- Sadly, _AWS SAM_ does not have the functionality to automatically save _CloudFormation_ outputs to a file.
+  I was able to circumvent it by some _Makefile_ magic. Actually it was not that bad and learned things along the way, but it would be nice to have this functionality be there out of the box.

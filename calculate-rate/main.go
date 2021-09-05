@@ -18,16 +18,18 @@ type Event struct {
 		BaseRate       string `json:"baseRate,omitempty"`
 		MaxLoanAmount  string `json:"maxLoanAmount,omitempty"`
 	} `json:"bankInfo,omitempty"`
-	Amount float64 `json:"amount,omitempty"`
-	Term   float64 `json:"term,omitempty"`
-	Credit struct {
+	Amount   float64 `json:"amount,omitempty"`
+	Term     float64 `json:"term,omitempty"`
+	BankName string  `json:"bankName"`
+	Credit   struct {
 		Score   float64 `json:"score,omitempty"`
 		History float64 `json:"history,omitempty"`
 	} `json:"credit,omitempty"`
 }
 
 type Output struct {
-	Rate float64 `json:"rate"`
+	Rate     float64 `json:"rate"`
+	BankName string  `json:"bankName"`
 }
 
 func handler(ctx context.Context, event Event) (*Output, error) {
@@ -51,5 +53,5 @@ func handler(ctx context.Context, event Event) (*Output, error) {
 	}
 
 	rate := baseRate*rand.Float64() + ((1000 - event.Credit.Score) / 100.0)
-	return &Output{Rate: rate}, nil
+	return &Output{Rate: rate, BankName: event.BankName}, nil
 }

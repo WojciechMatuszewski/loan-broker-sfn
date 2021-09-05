@@ -260,32 +260,3 @@ Outputs:
 
   BrokerStateMachineArn:
     Value: !Sub ${BrokerStateMachine.Arn}
-# {
-#   "SSN": "123-123",
-#   "amount": 30,
-#   "term": 30,
-#   "credit": {
-#     "score": 481,
-#     "history": 18
-#   },
-#   "banks": {
-#     "bankName": [
-#       "Universal",
-#       "PawnShop",
-#       "Premium"
-#     ]
-#   },
-#   "quotes": [
-#     {
-#       "rate": []
-#     },
-#     {
-#       "rate": [
-#         8.213301439898098
-#       ]
-#     },
-#     {
-#       "rate": []
-#     }
-#   ]
-# }

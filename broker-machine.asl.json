@@ -48,7 +48,7 @@
             "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
           }
         },
-        "UpdateExpression": "set #status = :newStatus",
+        "UpdateExpression": "SET #status = :newStatus",
         "ConditionExpression": "attribute_exists(#pk)",
         "ExpressionAttributeValues": {
           ":newStatus": "CONSULTING_BUREAU"
@@ -102,7 +102,7 @@
             "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
           }
         },
-        "UpdateExpression": "set #status = :newStatus",
+        "UpdateExpression": "SET #status = :newStatus",
         "ConditionExpression": "attribute_exists(#pk)",
         "ExpressionAttributeValues": {
           ":newStatus": "GETTING_QUOTES"
@@ -143,7 +143,7 @@
         "credit.$": "$.credit",
         "bankName.$": "$$.Map.Item.Value"
       },
-      "End": true,
+      "Next": "Transform quotes",
       "Iterator": {
         "StartAt": "Get the bank",
         "States": {
@@ -183,12 +183,50 @@
               "FunctionName": "${CalculateRateFunctionName}"
             },
             "ResultSelector": {
-              "rate.$": "$.[?(@.Payload)].Payload.rate"
+              "quote.$": "$.Payload"
             },
             "End": true
           }
         }
       }
+    },
+
+    "Transform quotes": {
+      "Type": "Pass",
+      "Parameters": {
+        "quotes.$": "$.quotes[?(@.quote)].quote"
+      },
+      "ResultPath": "$",
+      "Next": "Update status (save quotes)"
+    },
+
+    "Update status (save quotes)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${DataTableName}",
+        "Key": {
+          "pk": {
+            "S.$": "States.Format('LOAN#{}', $$.Execution.Name)"
+          }
+        },
+        "UpdateExpression": "SET #status = :newStatus, #quotes = :quotes",
+        "ConditionExpression": "attribute_exists(#pk)",
+        "ExpressionAttributeValues": {
+          ":newStatus": {
+            "S": "FINISHED"
+          },
+          ":quotes": {
+            "S.$": "States.JsonToString($.quotes)"
+          }
+        },
+        "ExpressionAttributeNames": {
+          "#pk": "pk",
+          "#status": "status",
+          "#quotes": "quotes"
+        }
+      },
+      "End": true
     }
   }
 }
